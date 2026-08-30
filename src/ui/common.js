@@ -89,18 +89,20 @@ export const loadDraft = () => {
 export const clearDraft = () => localStorage.removeItem(DRAFT);
 
 /** 12 维雷达图（SVG），可叠加第二个人 */
-export function radarChart(dims, dimKeys, secondary = null, size = 460) {
+export function radarChart(dims, dimKeys, secondary = null, size = 480) {
   const cx = size / 2;
   const cy = size / 2;
-  const R = size * 0.36;
+  const R = size * 0.365;
   const n = dimKeys.length;
   const NS = 'http://www.w3.org/2000/svg';
+  const uid = `r${Math.random().toString(36).slice(2, 8)}`;
   const svg = document.createElementNS(NS, 'svg');
   svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
   svg.setAttribute('class', 'radar');
-  const mk = (tag, attrs) => {
+  const mk = (tag, attrs, text) => {
     const e = document.createElementNS(NS, tag);
     for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+    if (text !== undefined) e.textContent = text;
     return e;
   };
   const pt = (i, r) => {
@@ -108,9 +110,17 @@ export function radarChart(dims, dimKeys, secondary = null, size = 460) {
     return [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
   };
 
+  // 径向渐变填充：中心亮、边缘淡，比纯色块更有体积感
+  const defs = mk('defs', {});
+  const grad = mk('radialGradient', { id: `${uid}fill`, cx: '50%', cy: '50%', r: '50%' });
+  grad.append(mk('stop', { offset: '0%', 'stop-color': '#e6bd63', 'stop-opacity': '0.42' }));
+  grad.append(mk('stop', { offset: '100%', 'stop-color': '#e6bd63', 'stop-opacity': '0.14' }));
+  defs.append(grad);
+  svg.append(defs);
+
   for (const f of [0.25, 0.5, 0.75, 1]) {
-    const d = dimKeys.map((_, i) => pt(i, R * f)).map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`).join('') + 'Z';
-    svg.append(mk('path', { d, class: 'ring' }));
+    const d = `${dimKeys.map((_, i) => pt(i, R * f)).map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`).join('')}Z`;
+    svg.append(mk('path', { d, class: `ring${f === 1 ? ' outer' : ''}` }));
   }
   dimKeys.forEach((_, i) => {
     const [x, y] = pt(i, R);
@@ -118,20 +128,42 @@ export function radarChart(dims, dimKeys, secondary = null, size = 460) {
   });
 
   const poly = (data, cls) => {
-    const d = dimKeys.map((k, i) => pt(i, (R * Math.max(4, data[k])) / 100))
-      .map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`).join('') + 'Z';
-    svg.append(mk('path', { d, class: cls }));
+    const d = `${dimKeys.map((k, i) => pt(i, (R * Math.max(4, data[k])) / 100))
+      .map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`).join('')}Z`;
+    const path = mk('path', { d, class: cls });
+    if (cls === 'poly') path.setAttribute('fill', `url(#${uid}fill)`);
+    svg.append(path);
   };
   if (secondary) poly(secondary, 'poly2');
   poly(dims, 'poly');
 
+  // 顶点圆点，让每一维的取值可读
   dimKeys.forEach((k, i) => {
-    const [x, y] = pt(i, R + 24);
-    const t = mk('text', { x, y, 'text-anchor': 'middle', 'dominant-baseline': 'middle' });
-    t.textContent = `${k} ${dims[k]}`;
-    svg.append(t);
+    const [x, y] = pt(i, (R * Math.max(4, dims[k])) / 100);
+    svg.append(mk('circle', { cx: x, cy: y, r: 2.6, class: 'dot' }));
+  });
+
+  // 轴标：维度字母在外，数值在其下
+  dimKeys.forEach((k, i) => {
+    const [x, y] = pt(i, R + 25);
+    svg.append(mk('text', { x, y: y - 4, 'text-anchor': 'middle', 'dominant-baseline': 'middle' }, k));
+    svg.append(mk('text', { x, y: y + 9, 'text-anchor': 'middle', 'dominant-baseline': 'middle', class: 'val' }, String(dims[k])));
   });
   return svg;
+}
+
+/**
+ * 六爻图形：阳爻一整条、阴爻断开两段，自下而上（CSS 用 column-reverse 排列）。
+ * @param {number[]} lines 6 个 0/1，索引 0 为初爻
+ * @param {number} width 图形宽度（px）
+ */
+export function yaoLines(lines, width = 112) {
+  // 爻线粗细与间距随宽度等比，否则小尺寸下会变成又高又窄的竖条
+  const lh = Math.max(2.5, width / 16);
+  const gap = Math.max(1.8, width / 22);
+  return el('div', { class: 'yao', style: `width:${width}px;--lh:${lh}px;--gap:${gap}px` },
+    lines.map((v) => el('i', { class: v ? 'yang' : 'yin' },
+      v ? el('b', {}) : [el('b', {}), el('b', {})])));
 }
 
 export function axisRow(axis, dims, pick) {

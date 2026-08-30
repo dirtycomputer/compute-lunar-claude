@@ -24,7 +24,7 @@
   <div class="grid c3" id="grid"></div>
 </div>
 <script type="module">
-import { mountChrome, el } from './src/ui/common.js';
+import { mountChrome, el, yaoLines } from './src/ui/common.js';
 import { AXES, DIMENSIONS, PREFIX_NAMES, SUFFIX_NAMES, hexagramFromLines } from './src/core/dimensions.js';
 mountChrome('codex.html');
 
@@ -57,7 +57,6 @@ for (const ax of AXES) {
   }
 }
 
-const yaoGlyph = (lines) => lines.slice().reverse().map(l => l ? '▬▬▬' : '▬ ▬').join('\n');
 
 function draw() {
   const q = document.getElementById('search').value.trim().toLowerCase();
@@ -73,12 +72,12 @@ function draw() {
   grid.innerHTML = '';
   for (const t of rows) {
     grid.append(el('div', { class: 'card tight' },
-      el('div', { style: 'display:flex;justify-content:space-between;align-items:flex-start;gap:10px' },
+      el('div', { style: 'display:flex;justify-content:space-between;align-items:flex-start;gap:12px' },
         el('div', {},
           el('div', { class: 'mono', style: 'font-size:21px;color:var(--gold);letter-spacing:2px' }, t.core),
           el('div', { style: 'font-family:var(--serif);font-size:16px;margin-top:2px' }, t.name),
           el('small', {}, t.en)),
-        el('pre', { class: 'mono', style: 'margin:0;font-size:9px;line-height:1.25;color:var(--jade)' }, yaoGlyph(t.lines))),
+        el('div', { style: 'flex:none' }, yaoLines(t.lines, 52))),
       el('p', { class: 'hint', style: 'margin:8px 0 0' },
         `第 ${t.hex.number} 卦 ${t.hex.composed}　·　核心型 #${t.index + 1}`),
       el('p', { style: 'font-size:12.5px;margin:6px 0 0' },

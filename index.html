@@ -23,7 +23,7 @@
     的人格代码——结构上与 <span class="mono">INTJ-A</span> 同级，信息量却高出两个数量级。
   </p>
 
-  <div style="display:flex;gap:12px;flex-wrap:wrap;margin:26px 0 10px">
+  <div style="display:flex;gap:12px;flex-wrap:wrap;margin:30px 0 10px">
     <a class="btn primary" href="assess.html">开始 144 题测评 →</a>
     <a class="btn" href="codex.html">浏览 64 型图谱</a>
     <a class="btn" href="pair.html">关系相性计算</a>
@@ -32,13 +32,23 @@
   <p class="hint">全部计算在你的浏览器本地完成；出生信息与答卷不会离开这台设备。</p>
 
   <h2>代码怎么读</h2>
-  <div class="card">
-    <div class="codeplate" style="font-size:36px">R O F P W M<span class="dash">-</span>3<span style="color:var(--jade)">A</span></div>
-    <div class="grid c3" style="margin-top:18px">
+  <div class="seal">
+    <span class="corner tl"></span><span class="corner tr"></span>
+    <span class="corner bl"></span><span class="corner br"></span>
+    <div style="display:flex;gap:30px;align-items:center;flex-wrap:wrap">
+      <div style="flex:1;min-width:250px">
+        <p class="eyebrow">Sample Code</p>
+        <div class="codeplate">ROFPWM<span class="dash">-</span>3<span style="color:var(--jade)">A</span></div>
+        <div class="typename">曜启·潮织者</div>
+        <p style="margin:2px 0 0;color:var(--fg-3);letter-spacing:1px">Sunherald Tideweaver</p>
+      </div>
+      <div style="flex:none;text-align:center" id="hero-yao"></div>
+    </div>
+    <div class="grid c3" style="margin-top:24px;padding-top:20px;border-top:1px solid var(--line-soft)">
       <div>
         <h3 style="margin-top:0">六个字母</h3>
         <p>六条双极轴各取显性的一极。六轴即六爻，自下而上，因此每个核心型都<strong style="color:var(--fg)">恰好对应一个六十四卦</strong>——
-          ROFPWM 即 <span class="mono" style="color:var(--jade)">☴☲ 风火家人</span>。</p>
+          ROFPWM 即 <span class="mono" style="color:var(--jade)">☰☲ 天火同人</span>。</p>
       </div>
       <div>
         <h3 style="margin-top:0">一个数字</h3>
@@ -52,7 +62,7 @@
           与 16Personalities 的 -A/-T 位置相同，但定义不同（见方法页）。</p>
       </div>
     </div>
-    <p class="hint" style="margin-top:14px">
+    <p class="hint" style="margin-top:18px">
       核心型 2⁶ = 64 种，× 5 行 × 2 调性 = <strong style="color:var(--gold)">640 种完整代码</strong>；
       每个维度同时保留 1–99 的连续分与 95% 区间，代码只是它的可读摘要。
     </p>
@@ -93,11 +103,19 @@
 </div>
 
 <script type="module">
-import { mountChrome, el } from './src/ui/common.js';
-import { DIMENSIONS, AXES } from './src/core/dimensions.js';
+import { mountChrome, el, yaoLines } from './src/ui/common.js';
+import { DIMENSIONS, AXES, hexagramFromLines } from './src/core/dimensions.js';
 import { rankedSystems, FAMILY_LABELS } from './src/data/systems.js';
 
 mountChrome('index.html');
+
+// 示例代码 ROFPWM 对应的六爻（轴 0 为初爻，首极记阳）
+const heroYao = document.getElementById('hero-yao');
+const heroHex = hexagramFromLines([1, 0, 1, 1, 1, 1]);
+heroYao.append(
+  yaoLines(heroHex.lines),
+  el('p', { class: 'hint', style: 'margin-top:12px;color:var(--jade)' }, `${heroHex.symbol} ${heroHex.composed}`),
+  el('p', { class: 'hint', style: 'margin-top:0' }, `第 ${heroHex.number} 卦`));
 
 const dimsBox = document.getElementById('dims');
 for (const ax of AXES) {

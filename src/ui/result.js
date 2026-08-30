@@ -1,6 +1,6 @@
 /** result.js — 结果页渲染（供测评页与档案查看复用） */
 
-import { el } from './common.js';
+import { el, yaoLines } from './common.js';
 import { DIM_KEYS, DIMENSIONS, AXES } from '../core/dimensions.js';
 import { ELEMENTS } from '../core/bazi.js';
 
@@ -25,34 +25,50 @@ export function renderResult(p, helpers) {
   const box = el('div', {});
   const dimScores = Object.fromEntries(DIM_KEYS.map((k) => [k, p.dims[k].score]));
 
-  // ——— 头部：代码 ———
-  box.append(el('div', { class: 'card', id: 'result-head' },
-    el('p', { class: 'eyebrow' }, 'Your OML Code'),
-    el('div', { class: 'codeplate', id: 'oml-code' },
-      ...[...p.code.core].map((c) => el('span', {}, c)),
-      el('span', { class: 'dash' }, '-'),
-      el('span', {}, p.code.element.digit),
-      el('span', { style: 'color:var(--jade)' }, p.code.temper)),
-    el('div', { class: 'typename' }, `${p.code.name.zh}　`, el('small', { style: 'font-size:15px' }, p.code.name.en)),
-    el('p', { style: 'margin-top:10px' }, p.narrative.subtitle),
-    el('div', { class: 'grid c3', style: 'margin-top:14px' },
-      el('div', {}, el('p', { class: 'eyebrow' }, '对应卦象'),
-        el('div', { class: 'hexline' }, p.code.hexagram.symbol, ' ', p.code.hexagram.composed),
-        el('p', { class: 'hint' }, `第 ${p.code.hexagram.number} 卦　上${p.code.hexagram.upper.zh}(${p.code.hexagram.upper.nature}) 下${p.code.hexagram.lower.zh}(${p.code.hexagram.lower.nature})`)),
-      el('div', {}, el('p', { class: 'eyebrow' }, '五行主导'),
-        el('div', { class: 'hexline' }, `${p.code.element.digit} ${p.code.element.zh}·${p.code.element.keyword}`),
-        el('p', { class: 'hint' }, ELEMENTS.map((e, i) => `${e}${p.code.element.blend[i].toFixed(2)}`).join('　'))),
-      el('div', {}, el('p', { class: 'eyebrow' }, '调性'),
-        el('div', { class: 'hexline' }, `${p.code.temper} ${p.code.temperMeta.zh} ${p.code.temperMeta.en}`),
-        el('p', { class: 'hint' }, `${p.code.temperMeta.gloss}（内部张力 ${p.code.tension.toFixed(2)}，合成量 ${p.code.coherence.toFixed(2)}）`))),
-    el('p', { class: 'hint', style: 'margin-top:12px' },
-      `核心型 #${p.code.typeIndex + 1} / 64　·　完整代码空间 64 × 5 × 2 = 640　·　象征层权重 λb = ${p.lambdaB}`)));
+  // ——— 头部：代码印记 ———
+  const statBlock = (label, main, sub, jade) => el('div', {},
+    el('p', { class: 'eyebrow' }, label),
+    el('div', { class: `v${jade ? ' jade' : ''}` }, main),
+    el('p', { class: 'hint', style: 'margin-top:3px' }, sub));
+
+  box.append(el('div', { class: 'seal', id: 'result-head', style: 'margin:18px 0 8px' },
+    el('span', { class: 'corner tl' }), el('span', { class: 'corner tr' }),
+    el('span', { class: 'corner bl' }), el('span', { class: 'corner br' }),
+    el('div', { style: 'display:flex;gap:30px;align-items:center;flex-wrap:wrap' },
+      el('div', { style: 'flex:1;min-width:250px' },
+        el('p', { class: 'eyebrow' }, 'Your OML Code'),
+        el('div', { class: 'codeplate', id: 'oml-code' },
+          ...[...p.code.core].map((c) => el('span', {}, c)),
+          el('span', { class: 'dash' }, '-'),
+          el('span', {}, p.code.element.digit),
+          el('span', { style: 'color:var(--jade)' }, p.code.temper)),
+        el('div', { class: 'typename' }, p.code.name.zh),
+        el('p', { style: 'margin:2px 0 0;color:var(--fg-3);letter-spacing:1px' }, p.code.name.en)),
+      // 六爻图形：核心型与卦象的直接呈现
+      el('div', { style: 'flex:none;text-align:center' },
+        yaoLines(p.code.hexagram.lines),
+        el('p', { class: 'hint', style: 'margin-top:12px;color:var(--jade)' },
+          `${p.code.hexagram.symbol} ${p.code.hexagram.composed}`),
+        el('p', { class: 'hint', style: 'margin-top:0' }, `第 ${p.code.hexagram.number} 卦`))),
+
+    el('div', { class: 'statrow', style: 'margin-top:22px;padding-top:20px;border-top:1px solid var(--line-soft)' },
+      statBlock('五行主导',
+        `${p.code.element.digit} ${p.code.element.zh}·${p.code.element.keyword}`,
+        // 合成量为 z 尺度，可正可负，故显式标注，避免负数被误读为「缺某行」
+        `五行合成量（z，越高越显性）　${ELEMENTS.map((e, i) => `${e}\u00A0${p.code.element.blend[i].toFixed(2)}`).join('　')}`),
+      statBlock('调性',
+        `${p.code.temper} ${p.code.temperMeta.zh} ${p.code.temperMeta.en}`,
+        `内部张力 ${p.code.tension.toFixed(2)}　合成量 ${p.code.coherence.toFixed(2)}`),
+      statBlock('代码空间',
+        '64 × 5 × 2',
+        `64 核心型 × 5 五行 × 2 调性 = 640 种　·　象征层权重 λb = ${p.lambdaB}`))));
 
   // ——— 雷达 + 轴 ———
   const axisBox = el('div', {}, AXES.map((ax, i) => axisRow(ax, p.dims, p.code.core[i])));
   box.append(el('h2', {}, '十二维剖面'),
     el('div', { class: 'grid c2' },
-      el('div', { class: 'card' }, radarChart(dimScores, DIM_KEYS)),
+      el('div', { class: 'card', style: 'padding:16px 12px;display:flex;align-items:center' },
+        radarChart(dimScores, DIM_KEYS)),
       el('div', { class: 'card' },
         el('p', { class: 'eyebrow' }, '六条双极轴'),
         axisBox,
@@ -62,10 +78,10 @@ export function renderResult(p, helpers) {
   // ——— 十二维明细 ———
   const dimCards = DIMENSIONS.map((d) => {
     const dd = p.dims[d.key];
-    return el('div', { class: 'card tight' },
+    return el('div', { class: 'card tight dimcard', style: `--w:${dd.score}%` },
       el('div', { style: 'display:flex;justify-content:space-between;align-items:baseline' },
-        el('span', { style: 'font-family:var(--serif);font-size:17px' }, `${d.name} ${d.key}`),
-        el('span', { class: 'mono', style: 'color:var(--gold);font-size:20px' }, String(dd.score))),
+        el('span', { style: 'font-family:var(--serif);font-size:18px;letter-spacing:1px' }, `${d.name} ${d.key}`),
+        el('span', { class: 'mono', style: 'color:var(--gold);font-size:22px;font-weight:700' }, String(dd.score))),
       el('p', { class: 'hint', style: 'margin:0 0 6px' }, `${d.en} · ${d.pinyin}`),
       el('div', { class: 'bar' }, el('i', { style: `width:${dd.score}%` })),
       el('p', { style: 'font-size:13px;margin:8px 0 4px' }, dd.score >= 55 ? d.high : (dd.score <= 45 ? d.low : d.gloss)),
@@ -102,7 +118,7 @@ export function renderResult(p, helpers) {
     el('div', { class: 'grid c2' },
       el('div', { class: 'card' },
         el('h3', { style: 'margin-top:0' }, 'MBTI 四轴'),
-        el('div', { class: 'codeplate', style: 'font-size:30px' }, c.mbti.code),
+        el('div', { class: 'codeplate', style: 'font-size:34px;letter-spacing:4px' }, c.mbti.code),
         el('div', { class: 'kv', style: 'margin-top:10px' },
           el('dt', {}, 'E ↔ I'), el('dd', {}, bar(c.mbti.axes.EI, `E ${c.mbti.axes.EI} / I ${100 - c.mbti.axes.EI}`)),
           el('dt', {}, 'N ↔ S'), el('dd', {}, bar(c.mbti.axes.NS, `N ${c.mbti.axes.NS} / S ${100 - c.mbti.axes.NS}`)),
@@ -158,10 +174,11 @@ export function renderResult(p, helpers) {
   return box;
 }
 
+/** 量条 + 右对齐的数值标签，同一行对齐 */
 function bar(v, label) {
-  return el('div', {},
-    el('div', { class: 'bar' }, el('i', { style: `width:${v}%` })),
-    el('small', { class: 'mono' }, label));
+  return el('div', { style: 'display:flex;align-items:center;gap:11px' },
+    el('div', { class: 'bar', style: 'flex:1' }, el('i', { style: `width:${v}%` })),
+    el('small', { class: 'mono', style: 'flex:none;min-width:86px;text-align:right;color:var(--fg-2)' }, label));
 }
 
 function metric(name, value) {
