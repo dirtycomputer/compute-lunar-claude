@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OML 64 型图谱 — 核心型 × 卦象 × 五行 × 调性</title>
+<link rel="stylesheet" href="src/ui/styles.css">
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow" style="margin-top:44px">The Codex of 64</p>
+  <h1>64 型图谱</h1>
+  <p class="lead">六条双极轴的每一种组合都是一个核心型，共 2⁶ = 64 种；每种恰好对应一个六十四卦。
+    再乘以 5 种五行主导与 2 种调性后缀，完整代码空间为 <span class="mono" style="color:var(--gold)">640</span> 种。</p>
+
+  <div class="card">
+    <div class="row">
+      <div class="field"><label>按轴筛选</label><div id="axisfilters" style="display:flex;gap:6px;flex-wrap:wrap"></div></div>
+      <div class="field"><label>搜索代码或名称</label><input type="text" id="search" placeholder="如 ROF / 潮织 / 家人"></div>
+    </div>
+    <p class="hint" id="count"></p>
+  </div>
+
+  <div class="grid c3" id="grid"></div>
+</div>
+<script type="module">
+import { mountChrome, el } from './src/ui/common.js';
+import { AXES, DIMENSIONS, PREFIX_NAMES, SUFFIX_NAMES, hexagramFromLines } from './src/core/dimensions.js';
+mountChrome('codex.html');
+
+const DIM = Object.fromEntries(DIMENSIONS.map(d => [d.key, d]));
+const types = [];
+for (let i = 0; i < 64; i += 1) {
+  const lines = [0,1,2,3,4,5].map(b => (i >> b) & 1);
+  const core = AXES.map((ax, k) => ax.poles[lines[k] === 1 ? 0 : 1]).join('');
+  const hex = hexagramFromLines(lines);
+  const prefix = PREFIX_NAMES[core.slice(0,3)];
+  const suffix = SUFFIX_NAMES[core.slice(3,6)];
+  types.push({ index: i, core, lines, hex, name: `${prefix.zh}·${suffix.zh}`, en: `${prefix.en} ${suffix.en}` });
+}
+
+const filters = {};
+const fbox = document.getElementById('axisfilters');
+for (const ax of AXES) {
+  for (const p of ax.poles) {
+    fbox.append(el('button', {
+      'data-pole': p,
+      onclick: (e) => {
+        filters[ax.id] = filters[ax.id] === p ? null : p;
+        [...fbox.children].forEach(c => {
+          const pole = c.getAttribute('data-pole');
+          c.className = Object.values(filters).includes(pole) ? 'primary' : '';
+        });
+        draw();
+      },
+    }, `${p} ${DIM[p].name}`));
+  }
+}
+
+const yaoGlyph = (lines) => lines.slice().reverse().map(l => l ? '▬▬▬' : '▬ ▬').join('\n');
+
+function draw() {
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  const rows = types.filter(t => {
+    for (const ax of AXES) {
+      const f = filters[ax.id];
+      if (f && t.core[ax.id] !== f) return false;
+    }
+    if (!q) return true;
+    return `${t.core} ${t.name} ${t.en} ${t.hex.name} ${t.hex.composed}`.toLowerCase().includes(q);
+  });
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  for (const t of rows) {
+    grid.append(el('div', { class: 'card tight' },
+      el('div', { style: 'display:flex;justify-content:space-between;align-items:flex-start;gap:10px' },
+        el('div', {},
+          el('div', { class: 'mono', style: 'font-size:21px;color:var(--gold);letter-spacing:2px' }, t.core),
+          el('div', { style: 'font-family:var(--serif);font-size:16px;margin-top:2px' }, t.name),
+          el('small', {}, t.en)),
+        el('pre', { class: 'mono', style: 'margin:0;font-size:9px;line-height:1.25;color:var(--jade)' }, yaoGlyph(t.lines))),
+      el('p', { class: 'hint', style: 'margin:8px 0 0' },
+        `第 ${t.hex.number} 卦 ${t.hex.composed}　·　核心型 #${t.index + 1}`),
+      el('p', { style: 'font-size:12.5px;margin:6px 0 0' },
+        AXES.map((ax, i) => `${DIM[t.core[i]].name}`).join(' · ')),
+      el('p', { class: 'hint' }, AXES.map((ax, i) => DIM[t.core[i]].en).join(' / '))));
+  }
+  document.getElementById('count').textContent = `显示 ${rows.length} / 64 种核心型（× 5 五行 × 2 调性 = ${rows.length * 10} 种完整代码）`;
+}
+document.getElementById('search').addEventListener('input', draw);
+draw();
+</script>
+</body>
+</html>

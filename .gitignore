@@ -1,0 +1,3 @@
+node_modules/
+tests/browser/screenshots/*.png
+.DS_Store

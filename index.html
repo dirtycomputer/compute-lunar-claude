@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OML 全域命理格 — 统一世界命理体系的十二维人格计算框架</title>
+<meta name="description" content="OML（Omni-Mantic Lattice，全域命理格）把西洋占星、四柱八字、吠陀占星、易经、MBTI、大五、九型、依恋等世界主要命理与人格体系统一到十二维连续量表，生成形如 ROFPWM-3A 的人格代码。">
+<link rel="stylesheet" href="src/ui/styles.css">
+</head>
+<body>
+<div class="wrap">
+
+  <p class="eyebrow" style="margin-top:44px">Omni-Mantic Lattice · v1.0</p>
+  <h1>全域命理格 OML</h1>
+  <p class="lead">
+    人类为「你是谁」这个问题造了几百套坐标系：黄道十二宫、四柱八字、二十七宿、六十四卦、
+    二十日号、九型、十六型、五因素。它们互相不通话，却在描述同一件事的不同切面。
+  </p>
+  <p class="lead">
+    OML 做的事很简单：<strong style="color:var(--fg)">把这些体系全部翻译成同一套十二维连续量表</strong>，
+    再由六条双极轴生成一个形如
+    <span class="mono" style="color:var(--gold)">ROFPWM-3A</span>
+    的人格代码——结构上与 <span class="mono">INTJ-A</span> 同级，信息量却高出两个数量级。
+  </p>
+
+  <div style="display:flex;gap:12px;flex-wrap:wrap;margin:26px 0 10px">
+    <a class="btn primary" href="assess.html">开始 144 题测评 →</a>
+    <a class="btn" href="codex.html">浏览 64 型图谱</a>
+    <a class="btn" href="pair.html">关系相性计算</a>
+    <a class="btn" href="systems.html">世界体系影响力排名</a>
+  </div>
+  <p class="hint">全部计算在你的浏览器本地完成；出生信息与答卷不会离开这台设备。</p>
+
+  <h2>代码怎么读</h2>
+  <div class="card">
+    <div class="codeplate" style="font-size:36px">R O F P W M<span class="dash">-</span>3<span style="color:var(--jade)">A</span></div>
+    <div class="grid c3" style="margin-top:18px">
+      <div>
+        <h3 style="margin-top:0">六个字母</h3>
+        <p>六条双极轴各取显性的一极。六轴即六爻，自下而上，因此每个核心型都<strong style="color:var(--fg)">恰好对应一个六十四卦</strong>——
+          ROFPWM 即 <span class="mono" style="color:var(--jade)">☴☲ 风火家人</span>。</p>
+      </div>
+      <div>
+        <h3 style="margin-top:0">一个数字</h3>
+        <p>五行主导：<span class="mono">1</span> 木 · <span class="mono">2</span> 火 ·
+          <span class="mono">3</span> 土 · <span class="mono">4</span> 金 · <span class="mono">5</span> 水。
+          由八字五行结构与十二维元素亲和加权合成。</p>
+      </div>
+      <div>
+        <h3 style="margin-top:0">一个后缀</h3>
+        <p><span class="mono">A</span> 协 / <span class="mono">T</span> 荡：内部张力与情绪稳态的合成量。
+          与 16Personalities 的 -A/-T 位置相同，但定义不同（见方法页）。</p>
+      </div>
+    </div>
+    <p class="hint" style="margin-top:14px">
+      核心型 2⁶ = 64 种，× 5 行 × 2 调性 = <strong style="color:var(--gold)">640 种完整代码</strong>；
+      每个维度同时保留 1–99 的连续分与 95% 区间，代码只是它的可读摘要。
+    </p>
+  </div>
+
+  <h2>十二维</h2>
+  <p>十二维两两成轴。它们是<strong style="color:var(--fg)">连续量、且各自独立计分</strong>——
+    你可以同时高「曜」与高「渊」（能量丰沛），也可以两极同低（低唤起）。字母只表示哪一极更突出。</p>
+  <div id="dims" class="grid c3"></div>
+
+  <h2>四层计算</h2>
+  <div class="grid c4">
+    <div class="card tight"><p class="eyebrow">Layer 0</p><h3 style="margin-top:2px">出生信息层</h3>
+      <p>儒略日 → 太阳/月亮黄经、上升点、节气、四柱干支、藏干五行、恒星黄道与二十七宿、卓尔金历、闸门轮。</p></div>
+    <div class="card tight"><p class="eyebrow">Layer 1</p><h3 style="margin-top:2px">问卷层</h3>
+      <p>144 题 7 点量表（每维 8 正 4 反），标准化为 z 分，并计算完整度、离散度、默认同意倾向与正反一致性四项效度指标。</p></div>
+    <div class="card tight"><p class="eyebrow">Layer 2</p><h3 style="margin-top:2px">象征先验层</h3>
+      <p>十余个符号来源各自映射为十二维偏移向量，按权重合成先验 B<sub>d</sub>。权重 λ<sub>b</sub> 由你控制，<strong style="color:var(--fg)">可以调到 0</strong>。</p></div>
+    <div class="card tight"><p class="eyebrow">Layer 3</p><h3 style="margin-top:2px">合成与反向映射</h3>
+      <p>Z<sub>d</sub> = (λ<sub>q</sub>Zq + λ<sub>b</sub>B) / √(λ<sub>q</sub>²+λ<sub>b</sub>²)，再反算回 MBTI、大五、九型、依恋、脉轮、体质、塔罗、卢恩、人类图。</p></div>
+  </div>
+
+  <h2>世界体系影响力排名（前十）</h2>
+  <p>影响指数 I = 0.40·认知人口 + 0.25·活跃使用 + 0.15·商业规模 + 0.10·制度嵌入 + 0.10·学术支持。
+    完整 47 项普查见<a href="systems.html">体系普查页</a>。</p>
+  <div class="tablewrap"><table id="top10"></table></div>
+
+  <h2>它不做什么</h2>
+  <div class="notice warn">
+    <p style="margin:0">
+      OML 不预测事件、不判吉凶、不做医疗或心理诊断。它是一套<strong style="color:var(--fg)">跨体系的翻译层与自我描述工具</strong>。
+      象征层的贡献度在结果页逐项标注，可随时归零。<br>
+      性别认同、性倾向与关系形态<strong style="color:var(--fg)">在任何情况下都不参与人格特质推断</strong>，
+      仅用于称谓与关系匹配的意愿准入；传统合婚中一切以性别定吉凶的规则均已对称化改写。
+    </p>
+  </div>
+
+</div>
+
+<script type="module">
+import { mountChrome, el } from './src/ui/common.js';
+import { DIMENSIONS, AXES } from './src/core/dimensions.js';
+import { rankedSystems, FAMILY_LABELS } from './src/data/systems.js';
+
+mountChrome('index.html');
+
+const dimsBox = document.getElementById('dims');
+for (const ax of AXES) {
+  const [a, b] = ax.poles.map((k) => DIMENSIONS.find((d) => d.key === k));
+  dimsBox.append(el('div', { class: 'card tight' },
+    el('p', { class: 'eyebrow' }, `${ax.zh} · ${ax.en}`),
+    el('p', { style: 'color:var(--fg);margin:2px 0 8px;font-family:var(--serif);font-size:17px' },
+      `${a.name}${a.key} ↔ ${b.name}${b.key}`),
+    el('p', { style: 'font-size:13px;margin:0 0 6px' }, `${a.key} ${a.name} ${a.en}：${a.gloss}`),
+    el('p', { style: 'font-size:13px;margin:0' }, `${b.key} ${b.name} ${b.en}：${b.gloss}`),
+    el('p', { class: 'hint' }, ax.question)));
+}
+
+const rows = rankedSystems().slice(0, 10);
+const t = document.getElementById('top10');
+t.append(el('thead', {}, el('tr', {},
+  el('th', {}, '#'), el('th', {}, '体系'), el('th', {}, '区域'), el('th', {}, '类别'),
+  el('th', {}, '影响指数'), el('th', {}, '在 OML 中的角色'))));
+t.append(el('tbody', {}, rows.map((s) => el('tr', {},
+  el('td', { class: 'mono' }, String(s.rank)),
+  el('td', {}, el('strong', {}, s.zh), el('br'), el('small', {}, s.en)),
+  el('td', {}, el('small', {}, s.region)),
+  el('td', {}, el('span', { class: `tag ${({ divination: 'gold', psychometric: 'blue', popculture: 'rose', identity: 'jade', somatic: 'violet' })[s.family]}` }, FAMILY_LABELS[s.family].zh)),
+  el('td', { class: 'mono', style: 'color:var(--gold)' }, s.influence.toFixed(1)),
+  el('td', {}, el('small', {}, s.omlUse))))));
+</script>
+</body>
+</html>
