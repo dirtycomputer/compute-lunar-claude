@@ -22,7 +22,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # enablement: true 让 action 在仓库尚未开启 Pages 时自动创建站点
+      # 并把构建来源设为 GitHub Actions（依赖下方已声明的 pages: write 权限）
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - name: Prepare artifact
         run: touch .nojekyll
       - uses: actions/upload-pages-artifact@v3
