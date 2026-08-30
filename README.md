@@ -8,6 +8,8 @@ OML 把它们全部翻译成同一套坐标，再由六条双极轴生成一个�
 
 零依赖、零后端、全部计算在浏览器本地完成。
 
+**在线体验：https://dirtycomputer.github.io/compute-lunar-claude/**
+
 ---
 
 ## 快速开始
