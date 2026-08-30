@@ -1,3 +1,6 @@
 node_modules/
 tests/browser/screenshots/*.png
 .DS_Store
+
+# GeoNames 构建脚本的下载缓存
+.geonames-tmp/

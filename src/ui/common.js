@@ -41,6 +41,9 @@ export function mountChrome(active) {
     el('div', { class: 'wrap' },
       el('p', {}, 'OML v1.0 — 一个把世界各地命理体系与现代人格分类统一到十二维连续量表上的开源计算框架。'),
       el('p', {}, '所有输出为结构化自我描述，不构成命运预测、医疗、心理、法律或财务建议。身份类信息（性别认同、性倾向、关系形态）永不作为人格特质的预测变量。'),
+      el('p', {}, '城市与时区数据来自 ',
+        el('a', { href: 'https://www.geonames.org/', target: '_blank', rel: 'noopener' }, 'GeoNames'),
+        '（CC BY 4.0）；时区偏移由浏览器的 IANA 时区库按出生时刻解析。'),
       el('p', {}, el('a', { href: 'method.html' }, '方法与伦理声明'), ' · ',
         el('a', { href: 'systems.html' }, '体系普查与影响力排名'), ' · ',
         el('a', { href: 'https://github.com/dirtycomputer/compute-lunar-claude', target: '_blank', rel: 'noopener' }, '源代码')))));

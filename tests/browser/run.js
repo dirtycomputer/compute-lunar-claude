@@ -97,14 +97,34 @@ const run = async () => {
   await page.evaluate(() => localStorage.clear());
   await page.reload({ waitUntil: 'networkidle' });
 
-  check('步骤 1 出生信息表单', await page.locator('input[type="number"]').count() >= 6);
-  await page.locator('input[type="number"]').nth(0).fill('1993');
-  await page.locator('input[type="number"]').nth(1).fill('11');
-  await page.locator('input[type="number"]').nth(2).fill('4');
-  await page.locator('input[type="number"]').nth(3).fill('7');
-  await page.locator('input[type="number"]').nth(4).fill('20');
-  await page.locator('select').first().selectOption({ label: '上海（UTC+8）' });
-  check('城市选择回填经度', await page.locator('#lon').inputValue() === '121.47');
+  check('步骤 1 出生信息表单', await page.locator('input[type="number"]').count() >= 5);
+  await page.locator('input[type="number"]').nth(0).fill('1988');
+  await page.locator('input[type="number"]').nth(1).fill('7');
+  await page.locator('input[type="number"]').nth(2).fill('1');
+  await page.locator('input[type="number"]').nth(3).fill('8');
+  await page.locator('input[type="number"]').nth(4).fill('0');
+
+  // ——— 城市选择器：搜索 → 选中 → 自动解析时区与真太阳时 ———
+  await page.locator('#city-search').fill('北京');
+  await page.waitForSelector('#city-results button.cityhit', { timeout: 8000 });
+  const firstHit = await page.locator('#city-results button.cityhit').first().innerText();
+  check('中文搜索命中北京', /北京/.test(firstHit), firstHit);
+  await page.locator('#city-results button.cityhit').first().click();
+  await page.waitForSelector('#geo-summary', { timeout: 5000 });
+
+  const offset = await page.locator('#geo-offset').innerText();
+  check('1988 年的北京自动解析为 UTC+09:00（当年实行夏令时）', offset === 'UTC+09:00', offset);
+  const solar = await page.locator('#geo-solar').innerText();
+  check('真太阳时校正已计算并显示', /-7[0-9](\.\d)? 分钟/.test(solar), solar);
+  check('经度已回填', Math.abs(Number(await page.locator('#lon').inputValue()) - 116.397) < 0.01);
+  check('纬度已回填', Math.abs(Number(await page.locator('#lat').inputValue()) - 39.908) < 0.01);
+
+  // 英文检索同样可用
+  await page.locator('#city-search').fill('new york');
+  await page.waitForSelector('#city-results button.cityhit', { timeout: 8000 });
+  const nyHit = await page.locator('#city-results button.cityhit').first().innerText();
+  check('英文搜索命中纽约', /纽约|New York/.test(nyHit), nyHit);
+  await page.locator('#city-search').fill('');
   await page.getByRole('button', { name: /下一步：情境题/ }).click();
 
   check('步骤 2 情境题', await page.locator('select').count() >= 4);
@@ -150,6 +170,8 @@ const run = async () => {
   check('九型人格显示', /九型人格/.test(bodyText));
   check('依恋类型显示', /(安全型|焦虑-投入型|疏离-回避型|恐惧-回避型)/.test(bodyText));
   check('象征先验逐项贡献表', /象征先验的逐项贡献/.test(bodyText));
+  check('结果页显示出生地时区', /出生地时区/.test(bodyText) && /Asia\/Shanghai/.test(bodyText));
+  check('结果页显示真太阳时校正', /真太阳时校正/.test(bodyText));
   check('效度指标显示', /总体置信度/.test(bodyText));
   check('免责声明显示', /不构成命运预测/.test(bodyText));
   // 条件渲染片段若返回 null/undefined，原生 append 会把它渲染成字面文本
