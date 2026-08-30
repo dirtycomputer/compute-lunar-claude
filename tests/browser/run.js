@@ -171,6 +171,25 @@ const run = async () => {
   check('依恋类型显示', /(安全型|焦虑-投入型|疏离-回避型|恐惧-回避型)/.test(bodyText));
   check('象征先验逐项贡献表', /象征先验的逐项贡献/.test(bodyText));
   check('结果页显示出生地时区', /出生地时区/.test(bodyText) && /Asia\/Shanghai/.test(bodyText));
+
+  // 六爻方向由 CSS 的 column-reverse 决定：初爻必须画在最下方。
+  // 改样式很容易把它静默颠倒，故用渲染坐标而非 DOM 顺序来断言。
+  const yao = await page.evaluate(() => {
+    const rows = [...document.querySelectorAll('#result-head .yao i')];
+    if (rows.length !== 6) return { count: rows.length };
+    const tops = rows.map((r) => r.getBoundingClientRect().top);
+    return {
+      count: 6,
+      firstIsLowest: tops[0] === Math.max(...tops),
+      lastIsHighest: tops[5] === Math.min(...tops),
+      yang: rows.map((r) => (r.classList.contains('yang') ? 1 : 0)),
+      lines: window.__omlState.profile.code.hexagram.lines,
+    };
+  });
+  check('六爻渲染 6 行', yao.count === 6, String(yao.count));
+  check('初爻画在最下、上爻画在最上', yao.firstIsLowest && yao.lastIsHighest);
+  check('阴阳爻与卦象数据一致', JSON.stringify(yao.yang) === JSON.stringify(yao.lines),
+    `${JSON.stringify(yao.yang)} vs ${JSON.stringify(yao.lines)}`);
   check('结果页显示真太阳时校正', /真太阳时校正/.test(bodyText));
   check('效度指标显示', /总体置信度/.test(bodyText));
   check('免责声明显示', /不构成命运预测/.test(bodyText));

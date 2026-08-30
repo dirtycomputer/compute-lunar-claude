@@ -206,13 +206,18 @@ export function hexagramFromLines(lines) {
   const lower = tri(lines.slice(0, 3));
   const upper = tri(lines.slice(3, 6));
   const number = KING_WEN[lower][upper];
+  const name = HEXAGRAM_NAMES[number - 1];
+  // 八纯卦（上下同卦）的传统称法是「乾为天」「坤为地」，而不是「天天乾」「地地坤」
+  const composed = lower === upper
+    ? `${name}为${TRIGRAMS[lower].nature}`
+    : `${TRIGRAMS[upper].nature}${TRIGRAMS[lower].nature}${name}`;
   return {
     number,
-    name: HEXAGRAM_NAMES[number - 1],
+    name,
     lower: TRIGRAMS[lower],
     upper: TRIGRAMS[upper],
     symbol: `${TRIGRAMS[upper].symbol}${TRIGRAMS[lower].symbol}`,
-    composed: `${TRIGRAMS[upper].nature}${TRIGRAMS[lower].nature}${HEXAGRAM_NAMES[number - 1]}`,
+    composed,
     lines,
   };
 }

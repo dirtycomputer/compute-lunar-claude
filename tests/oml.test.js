@@ -81,6 +81,43 @@ test('六爻 → 卦：已知案例', () => {
   }
 });
 
+test('八纯卦用传统称法「乾为天」而非「天天乾」', () => {
+  const pure = [
+    [[1, 1, 1, 1, 1, 1], 1, '乾为天'], [[0, 0, 0, 0, 0, 0], 2, '坤为地'],
+    [[0, 1, 0, 0, 1, 0], 29, '坎为水'], [[1, 0, 1, 1, 0, 1], 30, '离为火'],
+    [[1, 0, 0, 1, 0, 0], 51, '震为雷'], [[0, 0, 1, 0, 0, 1], 52, '艮为山'],
+    [[0, 1, 1, 0, 1, 1], 57, '巽为风'], [[1, 1, 0, 1, 1, 0], 58, '兑为泽'],
+  ];
+  for (const [lines, num, composed] of pure) {
+    const h = hexagramFromLines(lines);
+    assert.equal(h.number, num, composed);
+    assert.equal(h.composed, composed);
+  }
+  // 非纯卦仍用「上卦象 + 下卦象 + 卦名」
+  assert.equal(hexagramFromLines([1, 0, 1, 0, 1, 0]).composed, '水火既济');
+  assert.equal(hexagramFromLines([1, 1, 1, 0, 0, 0]).composed, '地天泰');
+  // 全部 64 卦的 composed 都非空且不含重复自然象（如「天天」）
+  for (let i = 0; i < 64; i += 1) {
+    const l = [0, 1, 2, 3, 4, 5].map((b) => (i >> b) & 1);
+    const h = hexagramFromLines(l);
+    assert.ok(h.composed.length >= 3, `第 ${h.number} 卦 composed 过短`);
+    assert.ok(!/^(.)\1/.test(h.composed), `第 ${h.number} 卦出现重复象：${h.composed}`);
+  }
+});
+
+test('文档中引用的示例卦象与算法一致', () => {
+  // README / 首页 / docs 都以 ROFPWM 举例。此前文案误写为「风火家人」，
+  // 实际上卦是乾不是巽；六爻图形渲染出来才暴露。此断言把文案钉在算法上。
+  const rofpwm = hexagramFromLines([1, 0, 1, 1, 1, 1]);
+  assert.equal(rofpwm.lower.zh, '离');
+  assert.equal(rofpwm.upper.zh, '乾');
+  assert.equal(rofpwm.number, 13);
+  assert.equal(rofpwm.composed, '天火同人');
+  // 风火家人对应的是另一个核心型
+  const jiaren = hexagramFromLines([1, 0, 1, 0, 1, 1]);
+  assert.equal(jiaren.composed, '风火家人');
+});
+
 test('64 种极性组合一一映射到 64 卦', () => {
   const nums = new Set();
   for (let i = 0; i < 64; i += 1) {
