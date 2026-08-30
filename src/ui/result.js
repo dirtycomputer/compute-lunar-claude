@@ -6,6 +6,14 @@ import { ELEMENTS } from '../core/bazi.js';
 
 const pct = (x) => `${Math.round(x * 100)}%`;
 
+/** 小时偏移 → UTC+08:00 */
+function fmtOffset(hours) {
+  const m = Math.round(hours * 60);
+  const sign = m < 0 ? '−' : '+';
+  const a = Math.abs(m);
+  return `UTC${sign}${String(Math.floor(a / 60)).padStart(2, '0')}:${String(a % 60).padStart(2, '0')}`;
+}
+
 /** 安全追加：跳过 null / undefined / false，避免被渲染成字面文本 */
 const add = (parent, ...kids) => {
   for (const k of kids) if (k) parent.append(k);
@@ -205,7 +213,15 @@ function renderChart(p) {
         el('dt', {}, '人类图闸门'), el('dd', {}, `太阳 ${ch.calendars.humanDesignGate.gate}.${ch.calendars.humanDesignGate.line}（近似）`),
         el('dt', {}, '生日卢恩'), el('dd', {}, ch.calendars.rune),
         el('dt', {}, '凯尔特树'), el('dd', {}, ch.calendars.celticTree),
-        el('dt', {}, '儒略日'), el('dd', { class: 'mono' }, ch.jd.toFixed(4))))));
+        el('dt', {}, '儒略日'), el('dd', { class: 'mono' }, ch.jd.toFixed(4)),
+        ...(ch.timezone
+          ? [
+            el('dt', {}, '出生地时区'), el('dd', { class: 'mono' },
+              `${ch.timezone.name}　${fmtOffset(ch.timezone.offsetHours)}`),
+            el('dt', {}, '真太阳时校正'), el('dd', { class: 'mono' },
+              `${ch.timezone.solarCorrectionMinutes > 0 ? '+' : ''}${ch.timezone.solarCorrectionMinutes} 分钟`),
+          ]
+          : [])))));
 
   // 象征先验贡献
   if (p.prior) {

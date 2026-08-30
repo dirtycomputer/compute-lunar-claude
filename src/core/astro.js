@@ -13,6 +13,15 @@ export const DEG = Math.PI / 180;
 export const RAD = 180 / Math.PI;
 
 export const norm360 = (x) => ((x % 360) + 360) % 360;
+/**
+ * 把角度差归一到 (−180, 180]。
+ * 用于经度差：汤加位于西经 175° 却使用 UTC+13（中央经线 195°），
+ * 直接相减会得到 −370°，换算成真太阳时便是荒谬的 −24.7 小时。
+ */
+export const wrapDeg180 = (x) => {
+  const d = norm360(x);
+  return d > 180 ? d - 360 : d;
+};
 export const sinD = (x) => Math.sin(x * DEG);
 export const cosD = (x) => Math.cos(x * DEG);
 export const tanD = (x) => Math.tan(x * DEG);

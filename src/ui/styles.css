@@ -224,3 +224,14 @@ footer.bottom { border-top: 1px solid var(--line); margin-top: 60px; padding: 26
   .kv { grid-template-columns: 96px 1fr; }
   .axisrow { grid-template-columns: 66px 1fr 66px; font-size: 12px; }
 }
+
+/* ——— 城市选择器 ——— */
+#city-results { max-height: 300px; overflow-y: auto; margin-top: 2px; }
+button.cityhit {
+  width: 100%; background: #0e131d; border: 1px solid var(--line);
+  border-radius: 8px; font-size: 14px; line-height: 1.5;
+}
+button.cityhit:hover { border-color: var(--gold-dim); background: var(--ink-3); }
+#geo-summary .kv { grid-template-columns: 104px 1fr; font-size: 13px; }
+details > summary { list-style: revert; }
+details > summary:hover { color: var(--gold); }

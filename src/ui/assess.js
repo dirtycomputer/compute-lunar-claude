@@ -4,25 +4,51 @@ import { $, el, mountChrome, saveProfile, saveDraft, loadDraft, clearDraft, rada
 import { shuffledItems, LIKERT, CONTEXT_ITEMS, ITEMS } from '../core/questionnaire.js';
 import { DIM_KEYS, DIMENSIONS, AXES } from '../core/dimensions.js';
 import { buildProfile } from '../core/scoring.js';
+import {
+  parseCityData, parseCountryData, buildIndex, searchCities,
+  resolveBirthLocation, cityLabel, formatOffset,
+} from '../core/geo.js';
 import { renderResult } from './result.js';
 
-export const CITIES = [
-  ['北京', 116.41, 39.90, 8], ['上海', 121.47, 31.23, 8], ['广州', 113.26, 23.13, 8],
-  ['深圳', 114.06, 22.55, 8], ['成都', 104.07, 30.57, 8], ['西安', 108.95, 34.34, 8],
-  ['哈尔滨', 126.53, 45.80, 8], ['乌鲁木齐', 87.62, 43.83, 8], ['香港', 114.17, 22.32, 8],
-  ['台北', 121.56, 25.03, 8], ['东京', 139.69, 35.69, 9], ['首尔', 126.98, 37.57, 9],
-  ['新加坡', 103.82, 1.35, 8], ['曼谷', 100.50, 13.76, 7], ['新德里', 77.21, 28.61, 5.5],
-  ['迪拜', 55.27, 25.20, 4], ['伦敦', -0.13, 51.51, 0], ['巴黎', 2.35, 48.86, 1],
-  ['柏林', 13.40, 52.52, 1], ['莫斯科', 37.62, 55.76, 3], ['纽约', -74.01, 40.71, -5],
-  ['洛杉矶', -118.24, 34.05, -8], ['多伦多', -79.38, 43.65, -5], ['圣保罗', -46.63, -23.55, -3],
-  ['悉尼', 151.21, -33.87, 10], ['奥克兰', 174.76, -36.85, 12], ['开普敦', 18.42, -33.92, 2],
-  ['拉各斯', 3.38, 6.52, 1], ['墨西哥城', -99.13, 19.43, -6],
-];
+// ——— 城市库（GeoNames，CC BY 4.0）。首屏只加载主库，补充库按需拉取 ———
+const cityStore = { list: null, index: null, countries: null, extraLoaded: false, loading: null };
+
+async function ensureCities() {
+  if (cityStore.list) return cityStore;
+  if (cityStore.loading) return cityStore.loading;
+  cityStore.loading = (async () => {
+    const [cityTxt, countryTxt] = await Promise.all([
+      fetch('src/data/cities.txt').then((r) => r.text()),
+      fetch('src/data/countries.txt').then((r) => r.text()),
+    ]);
+    cityStore.list = parseCityData(cityTxt);
+    cityStore.countries = parseCountryData(countryTxt);
+    cityStore.index = buildIndex(cityStore.list);
+    return cityStore;
+  })();
+  return cityStore.loading;
+}
+
+async function loadExtraCities() {
+  if (cityStore.extraLoaded) return;
+  const txt = await fetch('src/data/cities-extra.txt').then((r) => r.text());
+  const extra = parseCityData(txt);
+  cityStore.list = cityStore.list.concat(extra);
+  cityStore.index = cityStore.index.concat(buildIndex(extra));
+  cityStore.extraLoaded = true;
+}
+
 
 const PAGE_SIZE = 18;
 const state = {
   step: 0,
-  birth: { year: 1995, month: 6, day: 15, hour: 12, minute: 0, tzHours: 8, lonEast: 116.41, latNorth: 39.90, name: '', timeKnown: true },
+  birth: {
+    year: 1995, month: 6, day: 15, hour: 12, minute: 0,
+    lonEast: 116.397, latNorth: 39.908, timezone: 'Asia/Shanghai',
+    name: '', timeKnown: true,
+  },
+  city: null,        // 选中的城市对象
+  manualGeo: false,  // 是否改用手动经纬度/时区
   context: { gender: 'undisclosed', pronouns: '', orientation: 'undisclosed', attractedTo: ['any'], relStyle: 'undecided', intimacyPace: 'medium', mbtiSelf: '', enneaSelf: '', bloodType: '', symbolWeight: 0.15 },
   responses: {},
   page: 0,
@@ -32,13 +58,18 @@ const state = {
 const app = () => $('#app');
 
 function persist() {
-  saveDraft({ birth: state.birth, context: state.context, responses: state.responses, page: state.page, step: state.step });
+  saveDraft({
+    birth: state.birth, city: state.city, manualGeo: state.manualGeo,
+    context: state.context, responses: state.responses, page: state.page, step: state.step,
+  });
 }
 
 function restore() {
   const d = loadDraft();
   if (!d) return false;
   Object.assign(state.birth, d.birth || {});
+  state.city = d.city || null;
+  state.manualGeo = !!d.manualGeo;
   Object.assign(state.context, d.context || {});
   state.responses = d.responses || {};
   state.page = d.page || 0;
@@ -55,45 +86,188 @@ function renderBirth() {
     el('p', {}, '用于计算星盘、四柱、恒星黄道与历法符号。这些数据只留在你的浏览器里。若不填写，测评仍可进行——象征层将自动关闭，结果为纯心理测量。'),
     el('div', { class: 'card' },
       el('div', { class: 'row' },
-        field('出生年', input('number', b.year, (v) => { b.year = +v; }, { min: 1600, max: 2100 })),
-        field('月', input('number', b.month, (v) => { b.month = +v; }, { min: 1, max: 12 })),
-        field('日', input('number', b.day, (v) => { b.day = +v; }, { min: 1, max: 31 }))),
+        field('出生年', input('number', b.year, (v) => { b.year = +v; updateGeoPanel(); }, { min: 1600, max: 2100 })),
+        field('月', input('number', b.month, (v) => { b.month = +v; updateGeoPanel(); }, { min: 1, max: 12 })),
+        field('日', input('number', b.day, (v) => { b.day = +v; updateGeoPanel(); }, { min: 1, max: 31 }))),
       el('div', { class: 'row' },
-        field('时（24 小时制）', input('number', b.hour, (v) => { b.hour = +v; }, { min: 0, max: 23 })),
-        field('分', input('number', b.minute, (v) => { b.minute = +v; }, { min: 0, max: 59 })),
-        field('时区（UTC 偏移）', input('number', b.tzHours, (v) => { b.tzHours = +v; }, { step: 0.5, min: -12, max: 14 }))),
+        field('时（24 小时制）', input('number', b.hour, (v) => { b.hour = +v; updateGeoPanel(); }, { min: 0, max: 23 })),
+        field('分', input('number', b.minute, (v) => { b.minute = +v; updateGeoPanel(); }, { min: 0, max: 59 }))),
       el('div', { class: 'field' },
         el('label', {}, el('input', {
           type: 'checkbox', id: 'timeknown', style: 'width:auto;margin-right:8px', ...(b.timeKnown ? { checked: 'checked' } : {}),
-          onchange: (e) => { b.timeKnown = e.target.checked; persist(); },
+          onchange: (e) => { b.timeKnown = e.target.checked; persist(); updateGeoPanel(); },
         }), '我知道准确的出生时间（未勾选则按当日 12:00 计算，上升点与时柱不予输出）')),
-      el('div', { class: 'row' },
-        field('出生城市（快速填充经纬度）', citySelect()),
-        field('东经（西经为负）', input('number', b.lonEast, (v) => { b.lonEast = +v; }, { step: 0.01, id: 'lon' })),
-        field('北纬（南纬为负）', input('number', b.latNorth, (v) => { b.latNorth = +v; }, { step: 0.01, id: 'lat' }))),
-      field('姓名拉丁拼写（可选，用于数字命理的表达数）', input('text', b.name, (v) => { b.name = v; }, { placeholder: 'Lin Wenqing' })),
-      el('p', { class: 'hint' }, '真太阳时校正会按出生经度自动进行（每偏离时区中央经线 1° 约 4 分钟），影响时柱与晚子时进位。')),
+
+      el('div', { class: 'field' },
+        el('label', {}, '出生城市　City of birth'),
+        el('input', {
+          type: 'text', id: 'city-search', autocomplete: 'off',
+          placeholder: '输入中文或英文，如 北京 / Beijing / 乌鲁木齐 / New York',
+          oninput: (e) => runCitySearch(e.target.value),
+          onfocus: (e) => runCitySearch(e.target.value),
+        }),
+        el('div', { id: 'city-results' }),
+        el('p', { class: 'hint' },
+          '时区会按出生城市与出生日期自动判定，不需要你自己查 UTC——夏令时与历史时区变更（例如中国 1986–1991 年实行过夏令时）都会自动处理。')),
+
+      el('div', { id: 'geo-panel' }),
+
+      el('details', { style: 'margin-top:10px' },
+        el('summary', { style: 'cursor:pointer;color:var(--fg-dim);font-size:13px' }, '高级：手动指定经纬度与时区'),
+        el('div', { style: 'padding-top:10px' },
+          el('div', { class: 'row' },
+            field('东经（西经为负）', input('number', b.lonEast, (v) => { b.lonEast = +v; state.manualGeo = true; updateGeoPanel(); }, { step: 0.001, id: 'lon' })),
+            field('北纬（南纬为负）', input('number', b.latNorth, (v) => { b.latNorth = +v; state.manualGeo = true; updateGeoPanel(); }, { step: 0.001, id: 'lat' })),
+            field('UTC 偏移（小时，留空则用城市时区）', input('number', b.tzHours ?? '', (v) => {
+              b.tzHours = v === '' ? undefined : +v;
+              state.manualGeo = true;
+              updateGeoPanel();
+            }, { step: 0.25, min: -12, max: 14, id: 'tzmanual' }))),
+          el('p', { class: 'hint' }, '仅在城市不在库中、或你确知当地当年使用的是特殊时制时才需要手填。填了 UTC 偏移就会覆盖城市时区。'))),
+
+      field('姓名拉丁拼写（可选，用于数字命理的表达数）', input('text', b.name, (v) => { b.name = v; }, { placeholder: 'Lin Wenqing' }))),
+
     el('div', { style: 'display:flex;gap:10px;flex-wrap:wrap' },
       el('button', { class: 'primary', onclick: () => go(1) }, '下一步：情境题 →'),
       el('button', { onclick: () => { state.birth = null; go(1); } }, '跳过出生信息（纯心理测量模式）')));
+
+  // 异步载入城市库后刷新面板
+  ensureCities().then(() => {
+    updateGeoPanel();
+    const inputEl = document.getElementById('city-search');
+    if (inputEl && !state.city) inputEl.placeholder = `在 ${cityStore.list.length.toLocaleString()} 座城市中搜索：北京 / Beijing / New York`;
+  }).catch(() => {
+    const r = document.getElementById('city-results');
+    if (r) r.append(el('p', { class: 'hint' }, '城市库加载失败，请用下方「高级」手动填写经纬度与时区。'));
+  });
+
   return box;
 }
 
-function citySelect() {
-  return el('select', {
-    onchange: (e) => {
-      const c = CITIES[+e.target.value];
-      if (!c) return;
-      state.birth.lonEast = c[1];
-      state.birth.latNorth = c[2];
-      state.birth.tzHours = c[3];
-      $('#lon').value = c[1];
-      $('#lat').value = c[2];
-      persist();
-      render();
-    },
-  }, el('option', { value: '' }, '— 选择城市 —'),
-  CITIES.map((c, i) => el('option', { value: String(i) }, `${c[0]}（UTC${c[3] >= 0 ? '+' : ''}${c[3]}）`)));
+/** 执行城市检索并渲染候选 */
+function runCitySearch(query) {
+  const box = document.getElementById('city-results');
+  if (!box) return;
+  box.innerHTML = '';
+  if (!cityStore.index) { box.append(el('p', { class: 'hint' }, '城市库加载中…')); return; }
+  const q = (query || '').trim();
+  if (!q) return;
+  const hits = searchCities(cityStore.index, q, { limit: 12 });
+  if (!hits.length) {
+    box.append(el('p', { class: 'hint' }, `没找到「${q}」。`),
+      cityStore.extraLoaded
+        ? el('p', { class: 'hint' }, '完整城市库已加载；若仍找不到，请选择邻近城市，或用下方「高级」手动填写。经度每差 1° 只影响真太阳时约 4 分钟。')
+        : el('button', {
+          id: 'load-extra',
+          onclick: async (e) => {
+            e.target.disabled = true;
+            e.target.textContent = '加载中…';
+            await loadExtraCities();
+            runCitySearch(query);
+          },
+        }, '加载完整城市库（再增约 3.5 万座小城）'));
+    return;
+  }
+  box.append(el('div', { style: 'display:flex;flex-direction:column;gap:4px;margin-top:8px' },
+    hits.map((c) => {
+      const country = cityStore.countries[c.cc];
+      return el('button', {
+        type: 'button',
+        class: 'cityhit',
+        style: 'text-align:left;padding:7px 11px',
+        onclick: () => selectCity(c),
+      },
+      el('span', {}, cityLabel(c)),
+      el('small', { style: 'color:var(--fg-faint);margin-left:8px' },
+        `${country ? country.zh : c.cc}${c.admin1 ? ` · ${c.admin1}` : ''} · ${c.tz}`));
+    })));
+}
+
+function selectCity(c) {
+  state.city = c;
+  state.manualGeo = false;
+  state.birth.lonEast = c.lon;
+  state.birth.latNorth = c.lat;
+  state.birth.timezone = c.tz;
+  delete state.birth.tzHours; // 交回给时区自动解析
+  const inputEl = document.getElementById('city-search');
+  if (inputEl) inputEl.value = '';
+  const results = document.getElementById('city-results');
+  if (results) results.innerHTML = '';
+  const lonEl = document.getElementById('lon');
+  const latEl = document.getElementById('lat');
+  const tzEl = document.getElementById('tzmanual');
+  if (lonEl) lonEl.value = c.lon;
+  if (latEl) latEl.value = c.lat;
+  if (tzEl) tzEl.value = '';
+  persist();
+  updateGeoPanel();
+}
+
+/** 展示解析出的时区与真太阳时校正——让使用者看得见系统替他做了什么 */
+function updateGeoPanel() {
+  persist();
+  const panel = document.getElementById('geo-panel');
+  if (!panel) return;
+  panel.innerHTML = '';
+  const b = state.birth;
+  if (!b) return;
+
+  const manualTz = b.tzHours != null;
+  let tzHours;
+  let offsetLabel;
+  let solar;
+  let warn = null;
+
+  if (manualTz) {
+    tzHours = b.tzHours;
+    offsetLabel = formatOffset(Math.round(tzHours * 60));
+    solar = +((b.lonEast - tzHours * 15) * 4).toFixed(1);
+  } else if (b.timezone) {
+    const r = resolveBirthLocation(
+      { lon: b.lonEast, lat: b.latNorth, tz: b.timezone },
+      { year: b.year, month: b.month, day: b.day, hour: b.timeKnown ? b.hour : 12, minute: b.minute },
+    );
+    tzHours = r.tzHours;
+    offsetLabel = r.offsetLabel;
+    solar = r.solarCorrectionMinutes;
+    if (r.nonexistent) warn = '这个当地时间在当年不存在（夏令时前拨的空档），已按前拨后的时制计算。';
+    else if (r.ambiguous) warn = '这个当地时间在当年出现了两次（夏令时回拨），已取较早的一次。若你确知是回拨后出生，请在「高级」中手填 UTC 偏移。';
+  } else {
+    return;
+  }
+
+  const label = state.city
+    ? `${cityLabel(state.city)}　${(cityStore.countries && cityStore.countries[state.city.cc]) ? cityStore.countries[state.city.cc].zh : state.city.cc}`
+    : '自定义坐标';
+
+  panel.append(el('div', { class: 'card tight', id: 'geo-summary', style: 'margin-top:12px' },
+    el('div', { style: 'display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:baseline' },
+      el('strong', { style: 'font-size:15px' }, label),
+      el('span', { class: 'mono', style: 'color:var(--gold)', id: 'geo-offset' }, offsetLabel)),
+    el('div', { class: 'kv', style: 'margin-top:8px' },
+      el('dt', {}, '时区'), el('dd', { class: 'mono' }, manualTz ? '手动指定' : b.timezone),
+      el('dt', {}, '经纬度'), el('dd', { class: 'mono' }, `${b.lonEast.toFixed(3)}°E, ${b.latNorth.toFixed(3)}°N`),
+      el('dt', {}, '真太阳时校正'), el('dd', { class: 'mono', id: 'geo-solar' },
+        `${solar > 0 ? '+' : ''}${solar} 分钟`),
+      el('dt', {}, '时区中央经线'), el('dd', { class: 'mono' }, `${(tzHours * 15).toFixed(1)}°`)),
+    el('p', { class: 'hint' },
+      `钟表时间 ${String(b.timeKnown ? b.hour : 12).padStart(2, '0')}:${String(b.minute).padStart(2, '0')} 对应的真太阳时约为 `
+      + `${fmtClock((b.timeKnown ? b.hour : 12) * 60 + b.minute + solar)}，四柱的时柱按后者判定。`),
+    warn ? el('p', { class: 'hint', style: 'color:var(--rose)' }, warn) : null,
+    Math.abs(solar) >= 90
+      ? el('p', { class: 'hint', style: 'color:var(--gold)' },
+        `这里的真太阳时校正达 ${Math.abs(solar).toFixed(0)} 分钟，超过一个时辰的一半——`
+        + '因为当地经度与所用时区的中央经线相差很远（中国全境用北京时间、西班牙用中欧时间等都属此类）。'
+        + (state.city && state.city.cc === 'CN'
+          ? '本站按出生证明与户籍的口径，中国城市一律以北京时间解析；若家人告知的是新疆时间，请在下方「高级」中把 UTC 偏移改为 6。'
+          : ''))
+      : null));
+}
+
+function fmtClock(totalMinutes) {
+  const m = ((Math.round(totalMinutes) % 1440) + 1440) % 1440;
+  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 }
 
 function field(label, control) {

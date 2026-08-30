@@ -46,9 +46,9 @@ function demoProfile(seed, birth, context) {
 }
 
 function makeDemos() {
-  const a = demoProfile(20260829, { year: 1993, month: 11, day: 4, hour: 7, minute: 20, tzHours: 8, lonEast: 121.47, latNorth: 31.23 },
+  const a = demoProfile(20260829, { year: 1993, month: 11, day: 4, hour: 7, minute: 20, timezone: 'Asia/Shanghai', lonEast: 121.458, latNorth: 31.222 },
     { gender: 'woman', orientation: 'bi', attractedTo: ['woman', 'nonbinary'], relStyle: 'mono', intimacyPace: 'slow', symbolWeight: 0.15 });
-  const b = demoProfile(77712345, { year: 1990, month: 3, day: 19, hour: 21, minute: 5, tzHours: 8, lonEast: 113.26, latNorth: 23.13 },
+  const b = demoProfile(77712345, { year: 1990, month: 3, day: 19, hour: 21, minute: 5, timezone: 'Asia/Shanghai', lonEast: 113.265, latNorth: 23.129 },
     { gender: 'nonbinary', orientation: 'queer', attractedTo: ['any'], relStyle: 'mono', intimacyPace: 'medium', symbolWeight: 0.15 });
   saveProfile(a, '演示档案 A');
   saveProfile(b, '演示档案 B');

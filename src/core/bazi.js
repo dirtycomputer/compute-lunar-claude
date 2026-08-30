@@ -12,6 +12,7 @@ import {
   localToJD,
   sunLongitude,
   norm360,
+  wrapDeg180,
   julianDay,
   solarTermOf,
 } from './astro.js';
@@ -95,9 +96,10 @@ export function fourPillars(birth, opts = {}) {
     year, month, day, hour = 12, minute = 0, tzHours = 8, lonEast = 116.4,
   } = birth;
 
-  // 真太阳时校正：每偏离时区中央经线 1° 约 4 分钟
+  // 真太阳时校正：每偏离时区中央经线 1° 约 4 分钟。
+  // 经差须归一到 ±180°，否则换日线附近（如汤加：西经 175° 用 UTC+13）会得到荒谬的校正量。
   const meridian = tzHours * 15;
-  const lstOffsetMin = trueSolarTime ? (lonEast - meridian) * 4 : 0;
+  const lstOffsetMin = trueSolarTime ? wrapDeg180(lonEast - meridian) * 4 : 0;
   const totalMin = hour * 60 + minute + lstOffsetMin;
   const solarHour = ((totalMin / 60) % 24 + 24) % 24;
   const dayShift = Math.floor(totalMin / 60 / 24); // 校正可能跨日

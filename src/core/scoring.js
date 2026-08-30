@@ -16,10 +16,11 @@
 
 import {
   localToJD, julianDay, sunLongitude, moonLongitude, ascendantMC, lunarPhase,
-  signOf, signIndex, degreeInSign, ayanamsaLahiri, NAKSHATRAS, norm360, solarTermOf,
+  signOf, signIndex, degreeInSign, ayanamsaLahiri, NAKSHATRAS, norm360, wrapDeg180, solarTermOf,
 } from './astro.js';
 import { analyzeBazi, ELEMENTS, ELEMENT_KEY } from './bazi.js';
 import { lifePath, nameNumbers, hdGate, birthRune, celticTree, tzolkin } from './numerology.js';
+import { offsetForLocalTime } from './geo.js';
 import {
   DIMENSIONS, DIM_KEYS, AXES, PREFIX_NAMES, SUFFIX_NAMES, ELEMENT_LABEL,
   TEMPER, hexagramFromLines, reverseHexagram, inverseHexagram,
@@ -56,15 +57,28 @@ const sd = (a) => {
 
 // ————————————————————————— 一、出生信息算法 —————————————————————————
 /**
- * @param {object} birth {year,month,day,hour,minute,tzHours,lonEast,latNorth,name}
+ * @param {object} birth {year,month,day,hour,minute,lonEast,latNorth,name,
+ *                        tzHours?  直接给定 UTC 偏移（小时，可为小数）
+ *                        timezone? IANA 时区名，如 Asia/Shanghai}
+ *   若给出 timezone 而未给 tzHours，则按「出生的那一刻」解析偏移——
+ *   这样夏令时与历史时区变更（如中国 1986–1991 年夏令时）会自动正确，
+ *   使用者不需要自己查 UTC。
  * @returns 完整的出生符号图（星盘 + 八字 + 数字 + 历法）
  */
 export function buildBirthChart(birth) {
   const {
     year, month, day, hour = 12, minute = 0,
-    tzHours = 8, lonEast = 116.4, latNorth = 39.9, name = '',
-    timeKnown = true,
+    lonEast = 116.4, latNorth = 39.9, name = '',
+    timeKnown = true, timezone = null,
   } = birth;
+
+  let tzHours = birth.tzHours;
+  let tzResolved = null;
+  if (timezone && tzHours == null) {
+    tzResolved = offsetForLocalTime(timezone, year, month, day, timeKnown ? hour : 12, minute);
+    tzHours = tzResolved.hours;
+  }
+  if (tzHours == null) tzHours = 8;
 
   const jd = localToJD({ year, month, day, hour: timeKnown ? hour : 12, minute, tzHours });
   const jdn = Math.floor(julianDay(year, month, day)) + 1;
@@ -82,7 +96,17 @@ export function buildBirthChart(birth) {
   const tz = tzolkin(jdn);
 
   return {
-    input: { ...birth, timeKnown },
+    input: { ...birth, timeKnown, tzHours, timezone },
+    timezone: timezone
+      ? {
+        name: timezone,
+        offsetHours: tzHours,
+        // 真太阳时相对钟表时间的偏差：每偏离时区中央经线 1° 约 4 分钟
+        solarCorrectionMinutes: +(wrapDeg180(lonEast - tzHours * 15) * 4).toFixed(1),
+        ambiguous: tzResolved ? tzResolved.ambiguous : false,
+        nonexistent: tzResolved ? tzResolved.nonexistent : false,
+      }
+      : null,
     jd,
     jdn,
     western: {
