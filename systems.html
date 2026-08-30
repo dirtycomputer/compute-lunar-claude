@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>世界命理与人格体系普查 — 影响力排名</title>
+<link rel="stylesheet" href="src/ui/styles.css">
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow" style="margin-top:44px">Census & Influence Ranking</p>
+  <h1>世界命理与人格体系普查</h1>
+  <p class="lead">47 个体系，覆盖六大洲、三千年。按影响指数排序，点表头可换排序键。</p>
+  <div class="card">
+    <p style="margin:0"><strong style="color:var(--fg)">影响指数 I</strong> =
+      0.40·认知人口 + 0.25·活跃使用 + 0.15·商业规模 + 0.10·制度嵌入 + 0.10·学术支持</p>
+    <p class="hint">五项子分为 0–100 的量级估计（order-of-magnitude judgement），依据包括从业规模的公开报道、搜索与应用可见度、在婚配与人事制度中的实际使用、以及同行评议文献的存在量。它们是<strong style="color:var(--fg)">可辩论的估计而非精确统计</strong>；数据结构即接口，任一子分都可被更好的数据替换后重新排序。</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin:18px 0" id="filters"></div>
+  <div class="tablewrap"><table id="tbl"></table></div>
+  <p class="hint" id="count"></p>
+</div>
+<script type="module">
+import { mountChrome, el } from './src/ui/common.js';
+import { rankedSystems, FAMILY_LABELS, WEIGHTS } from './src/data/systems.js';
+mountChrome('systems.html');
+
+const all = rankedSystems();
+let sortKey = 'influence', desc = true, family = 'all';
+const COLORS = { divination:'gold', psychometric:'blue', popculture:'rose', identity:'jade', somatic:'violet' };
+
+const filters = document.getElementById('filters');
+const mkFilter = (key, label) => el('button', {
+  class: family === key ? 'primary' : '',
+  onclick: () => { family = key; draw(); }
+}, label);
+
+function draw() {
+  filters.innerHTML = '';
+  filters.append(mkFilter('all', `全部 ${all.length}`));
+  for (const [k, v] of Object.entries(FAMILY_LABELS)) {
+    filters.append(mkFilter(k, `${v.zh} ${all.filter(s => s.family === k).length}`));
+  }
+  const rows = all.filter(s => family === 'all' || s.family === family)
+    .sort((a, b) => (desc ? 1 : -1) * ((typeof a[sortKey] === 'string')
+      ? String(b[sortKey]).localeCompare(String(a[sortKey]))
+      : b[sortKey] - a[sortKey]));
+
+  const cols = [
+    ['rank', '#'], ['zh', '体系'], ['region', '区域'], ['era', '年代'], ['family', '类别'],
+    ['reach', '认知'], ['active', '活跃'], ['commerce', '商业'], ['institution', '制度'], ['academia', '学术'],
+    ['influence', '影响指数'], ['mechanism', '输入 → 输出'], ['omlUse', '在 OML 中的角色'],
+  ];
+  const t = document.getElementById('tbl');
+  t.innerHTML = '';
+  t.append(el('thead', {}, el('tr', {}, cols.map(([k, label]) => el('th', {
+    onclick: () => { if (sortKey === k) desc = !desc; else { sortKey = k; desc = true; } draw(); },
+    style: sortKey === k ? 'color:var(--gold)' : '',
+  }, label + (sortKey === k ? (desc ? ' ▾' : ' ▴') : ''))))));
+  t.append(el('tbody', {}, rows.map(s => el('tr', {},
+    el('td', { class: 'mono' }, String(s.rank)),
+    el('td', {}, el('strong', {}, s.zh), el('br'), el('small', {}, s.en)),
+    el('td', {}, el('small', {}, s.region)),
+    el('td', {}, el('small', {}, s.era)),
+    el('td', {}, el('span', { class: `tag ${COLORS[s.family]}` }, FAMILY_LABELS[s.family].zh)),
+    ...['reach','active','commerce','institution','academia'].map(k => el('td', { class:'mono' }, el('small', {}, String(s[k])))),
+    el('td', { class: 'mono', style: 'color:var(--gold);font-size:15px' }, s.influence.toFixed(1)),
+    el('td', { style:'min-width:220px' }, el('small', {}, s.mechanism)),
+    el('td', { style:'min-width:240px' }, el('small', {}, s.omlUse))))));
+  document.getElementById('count').textContent =
+    `显示 ${rows.length} / ${all.length} 项　·　权重 ${JSON.stringify(WEIGHTS)}`;
+}
+draw();
+</script>
+</body>
+</html>

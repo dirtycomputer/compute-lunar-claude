@@ -1,0 +1,148 @@
+/** common.js — 页面共用的 DOM 工具、导航与本地档案存储 */
+
+export const $ = (sel, root = document) => root.querySelector(sel);
+export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+
+export function el(tag, attrs = {}, ...children) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') node.className = v;
+    else if (k === 'html') node.innerHTML = v;
+    else if (k.startsWith('on') && typeof v === 'function') node.addEventListener(k.slice(2).toLowerCase(), v);
+    else if (v !== null && v !== undefined && v !== false) node.setAttribute(k, v);
+  }
+  for (const c of children.flat()) {
+    if (c === null || c === undefined || c === false) continue;
+    node.append(c.nodeType ? c : document.createTextNode(String(c)));
+  }
+  return node;
+}
+
+const NAV = [
+  ['index.html', '首页'],
+  ['assess.html', '开始测评'],
+  ['codex.html', '64 型图谱'],
+  ['pair.html', '关系相性'],
+  ['systems.html', '体系普查'],
+  ['method.html', '方法与伦理'],
+];
+
+export function mountChrome(active) {
+  const header = el('header', { class: 'top' },
+    el('div', { class: 'inner' },
+      el('a', { class: 'brand', href: 'index.html' },
+        el('span', { class: 'logo' }, 'OML'),
+        el('span', { class: 'sub' }, '全域命理格 · Omni-Mantic Lattice')),
+      el('nav', { class: 'main' },
+        NAV.map(([href, label]) => el('a', { href, class: href === active ? 'active' : '' }, label)))));
+  document.body.prepend(header);
+
+  document.body.append(el('footer', { class: 'bottom' },
+    el('div', { class: 'wrap' },
+      el('p', {}, 'OML v1.0 — 一个把世界各地命理体系与现代人格分类统一到十二维连续量表上的开源计算框架。'),
+      el('p', {}, '所有输出为结构化自我描述，不构成命运预测、医疗、心理、法律或财务建议。身份类信息（性别认同、性倾向、关系形态）永不作为人格特质的预测变量。'),
+      el('p', {}, el('a', { href: 'method.html' }, '方法与伦理声明'), ' · ',
+        el('a', { href: 'systems.html' }, '体系普查与影响力排名'), ' · ',
+        el('a', { href: 'https://github.com/dirtycomputer/compute-lunar-claude', target: '_blank', rel: 'noopener' }, '源代码')))));
+}
+
+// ——— 本地档案存储（仅存在浏览器本地，不上传） ———
+const KEY = 'oml.profiles.v1';
+
+export function loadProfiles() {
+  try {
+    return JSON.parse(localStorage.getItem(KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+export function saveProfile(profile, label) {
+  const list = loadProfiles();
+  const entry = {
+    id: `p${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+    label: label || profile.code.code,
+    savedAt: new Date().toISOString(),
+    profile,
+  };
+  list.unshift(entry);
+  localStorage.setItem(KEY, JSON.stringify(list.slice(0, 24)));
+  return entry;
+}
+
+export function deleteProfile(id) {
+  localStorage.setItem(KEY, JSON.stringify(loadProfiles().filter((p) => p.id !== id)));
+}
+
+export function getProfile(id) {
+  return loadProfiles().find((p) => p.id === id) || null;
+}
+
+const DRAFT = 'oml.draft.v1';
+export const saveDraft = (d) => localStorage.setItem(DRAFT, JSON.stringify(d));
+export const loadDraft = () => {
+  try { return JSON.parse(localStorage.getItem(DRAFT) || 'null'); } catch { return null; }
+};
+export const clearDraft = () => localStorage.removeItem(DRAFT);
+
+/** 12 维雷达图（SVG），可叠加第二个人 */
+export function radarChart(dims, dimKeys, secondary = null, size = 460) {
+  const cx = size / 2;
+  const cy = size / 2;
+  const R = size * 0.36;
+  const n = dimKeys.length;
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
+  svg.setAttribute('class', 'radar');
+  const mk = (tag, attrs) => {
+    const e = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+    return e;
+  };
+  const pt = (i, r) => {
+    const a = (Math.PI * 2 * i) / n - Math.PI / 2;
+    return [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
+  };
+
+  for (const f of [0.25, 0.5, 0.75, 1]) {
+    const d = dimKeys.map((_, i) => pt(i, R * f)).map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`).join('') + 'Z';
+    svg.append(mk('path', { d, class: 'ring' }));
+  }
+  dimKeys.forEach((_, i) => {
+    const [x, y] = pt(i, R);
+    svg.append(mk('line', { x1: cx, y1: cy, x2: x, y2: y, class: 'axis' }));
+  });
+
+  const poly = (data, cls) => {
+    const d = dimKeys.map((k, i) => pt(i, (R * Math.max(4, data[k])) / 100))
+      .map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`).join('') + 'Z';
+    svg.append(mk('path', { d, class: cls }));
+  };
+  if (secondary) poly(secondary, 'poly2');
+  poly(dims, 'poly');
+
+  dimKeys.forEach((k, i) => {
+    const [x, y] = pt(i, R + 24);
+    const t = mk('text', { x, y, 'text-anchor': 'middle', 'dominant-baseline': 'middle' });
+    t.textContent = `${k} ${dims[k]}`;
+    svg.append(t);
+  });
+  return svg;
+}
+
+export function axisRow(axis, dims, pick) {
+  const [a, b] = axis.poles;
+  const za = dims[a].score;
+  const zb = dims[b].score;
+  const total = za + zb || 1;
+  const pctA = (za / total) * 100;
+  return el('div', { class: 'axisrow' },
+    el('div', { class: `left ${pick === a ? 'on' : ''}` }, `${dims[a].meta.name} ${a} ${za}`),
+    el('div', { class: 'track' },
+      el('i', { style: `left:3px;width:calc(${pctA.toFixed(1)}% - 6px)` }),
+      el('span', { class: 'mid' })),
+    el('div', { class: `right ${pick === b ? 'on' : ''}` }, `${b} ${dims[b].meta.name} ${zb}`));
+}
+
+export function fmtPct(x) { return `${Math.round(x * 100)}%`; }

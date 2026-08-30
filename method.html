@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OML 方法、公式与伦理声明</title>
+<link rel="stylesheet" href="src/ui/styles.css">
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow" style="margin-top:44px">Method · Formulas · Ethics</p>
+  <h1>方法与伦理</h1>
+  <p class="lead">OML 的每一步都写在这里。任何一个数字你都可以复算、质疑或替换。</p>
+
+  <h2>1. 出生信息算法</h2>
+  <div class="card">
+    <ul class="clean">
+      <li><strong style="color:var(--fg)">儒略日</strong>：本地民用时按时区折算为 UT，再由 Meeus 标准式得 JD；1582-10-15 起自动切换格里历。</li>
+      <li><strong style="color:var(--fg)">太阳黄经</strong>：Meeus ch.25 截断级数（几何平黄经 + 中心差 + 章动/光行差修正），精度 ≈ ±0.01°。</li>
+      <li><strong style="color:var(--fg)">月亮黄经</strong>：Meeus ch.47 主要 19 项，精度 ≈ ±0.3°，足以定星座与月相。</li>
+      <li><strong style="color:var(--fg)">上升点</strong>：由 GMST + 出生经度得本地恒星时 RAMC，再解 ASC = atan2(−cosRAMC, sinRAMC·cosε + tanφ·sinε)；|纬度| &gt; 66.4° 退化为 MC+90°。</li>
+      <li><strong style="color:var(--fg)">年柱</strong>：立春（太阳黄经 315°）换年，不用正月初一。</li>
+      <li><strong style="color:var(--fg)">月柱</strong>：以「节」换月，月支由太阳黄经每 30° 一位（寅月起于 315°）；月干由年干五虎遁得出。</li>
+      <li><strong style="color:var(--fg)">日柱</strong>：干支序 = (JDN + 49) mod 60。锚点：1949-10-01 = 甲子日，2000-01-01 = 戊午日（见测试）。</li>
+      <li><strong style="color:var(--fg)">时柱</strong>：按出生经度做真太阳时校正（偏离时区中央经线 1° ≈ 4 分钟），时干由日干五鼠遁得出；23:00 后按晚子时进位次日。</li>
+      <li><strong style="color:var(--fg)">五行权重</strong>：天干各 1.0（日干 1.2），地支藏干按主/中/余气 0.6/0.25/0.15 计并 ×1.2，月令主气再 ×1.5。</li>
+      <li><strong style="color:var(--fg)">吠陀</strong>：Lahiri 岁差 ≈ 23.85° + 1.3972°·T 换算恒星黄道，月宿取 27 分位。</li>
+      <li><strong style="color:var(--fg)">其他历法</strong>：玛雅卓尔金（GMT 584283 相关数）、人类图 64 闸门轮（Gate 41 起于黄经 302°，标注为近似）、生日卢恩、凯尔特树历、生命灵数。</li>
+    </ul>
+  </div>
+
+  <h2>2. 十二维评分公式</h2>
+  <div class="card mono" style="font-size:14px;line-height:2.1;color:var(--fg)">
+    x<sub>i</sub> &nbsp;= k<sub>i</sub> · (r<sub>i</sub> − 4) / 3 &nbsp;&nbsp;<span style="color:var(--fg-faint)">// 单题归一化，k = ±1 为正/反向键，r ∈ [1,7]</span><br>
+    Q<sub>d</sub> = mean<sub>i∈d</sub> x<sub>i</sub> &nbsp;&nbsp;<span style="color:var(--fg-faint)">// 维度原始分 ∈ [−1, 1]，每维 12 题</span><br>
+    Zq<sub>d</sub> = (Q<sub>d</sub> − μ<sub>d</sub>) / σ<sub>d</sub> &nbsp;&nbsp;<span style="color:var(--fg-faint)">// 按常模标准化</span><br>
+    B<sub>d</sub> = 2.4 · Σ<sub>s</sub> w<sub>s</sub>·vec<sub>s</sub>[d] / Σ<sub>s</sub> w<sub>s</sub> &nbsp;&nbsp;<span style="color:var(--fg-faint)">// 象征先验，s 遍历全部符号来源</span><br>
+    Z<sub>d</sub> = (λ<sub>q</sub>·Zq<sub>d</sub> + λ<sub>b</sub>·B<sub>d</sub>) / √(λ<sub>q</sub>² + λ<sub>b</sub>²) &nbsp;&nbsp;<span style="color:var(--fg-faint)">// 保持单位方差的复合</span><br>
+    Score<sub>d</sub> = clamp(round(50 + 15·Z<sub>d</sub>), 1, 99)
+  </div>
+  <p>λ<sub>q</sub> 固定为 1，λ<sub>b</sub> ∈ [0, 0.40] 由用户设定（默认 0.15）。λ<sub>b</sub> = 0.15 时象征层约占最终分数的
+    <span class="mono">15%/√(1+0.0225) ≈ 14.8%</span> 的方差贡献；λ<sub>b</sub> = 0 时出生信息完全不影响分数，结果退化为纯心理测量量表。
+    结果页对每一维标注了「象征占比」，可逐项审计。</p>
+
+  <h2>3. 十二维与常模</h2>
+  <div class="tablewrap"><table id="normtable"></table></div>
+  <p class="hint">当前常模为<strong style="color:var(--fg)">设计常模</strong>（以量表中点加轻度默认同意偏差为基准的先验值），非实证分层常模。
+    收集足量真实样本后应替换 <span class="mono">src/core/scoring.js</span> 中的 NORMS，并按语言/地区/年龄分层。这是本框架已知的最大局限。</p>
+
+  <h2>4. OML 代码的构造</h2>
+  <div class="card">
+    <ul class="clean">
+      <li><strong style="color:var(--fg)">六个字母</strong>：每条轴取 z 分较高的一极。轴 0→5 依次为初爻→上爻，首极记阳、次极记阴，于是核心型 ≡ 六十四卦（文王卦序）。</li>
+      <li><strong style="color:var(--fg)">数字</strong>：五行主导 = 0.35+λ<sub>b</sub> 权重的八字五行结构 与 (1−该权重) 的十二维元素亲和 的加权 argmax。</li>
+      <li><strong style="color:var(--fg)">后缀 A/T</strong>：coherence = 0.40·z<sub>磐</sub> − 0.35·z<sub>汐</sub> + 0.15·z<sub>垣</sub> + 0.10·z<sub>根</sub> − 0.55·张力 + 0.15·(一致性−0.7)·2，
+        ≥ 0 记 A（协），&lt; 0 记 T（荡）。其中「张力」= 六轴上 min(z<sub>极1</sub>, z<sub>极2</sub>) 的均值，度量两极同时偏高造成的内部拉扯。</li>
+      <li><strong style="color:var(--fg)">与 16Personalities 的 -A/-T 的区别</strong>：后者的 A/T 基本等价于神经质的反向；OML 的 A/T 额外计入
+        <em>轴向张力</em>与<em>作答一致性</em>，因此一个情绪敏感但内部自洽的人仍可能是 A。</li>
+    </ul>
+  </div>
+
+  <h2>5. 统一映射表（正向）</h2>
+  <p>每个符号来源被翻译成十二维上的 z 偏移向量。下表为各来源的默认权重 w<sub>s</sub>；完整向量见
+    <span class="mono">src/core/mapping.js</span>，逐项贡献会在结果页展开。</p>
+  <div class="tablewrap"><table id="weighttable"></table></div>
+  <div class="notice">
+    这些系数是<strong style="color:var(--fg)">设计参数</strong>——由体系语义结构化对齐得到，不是实证回归系数。
+    它们的作用是让不同体系可以互相翻译，而不是宣称出生时间能预测人格。若你认为某个体系不应有任何权重，把 λ<sub>b</sub> 调到 0 即可。
+  </div>
+
+  <h2>6. 反向映射</h2>
+  <p>同一组十二维 z 分被线性重述为：MBTI 四轴、大五 OCEAN、九型（余弦相似度 + 侧翼）、成人依恋四象限、
+    主导脉轮、阿育吠陀三体质、中医体质倾向、人类图四类型（近似）、爱之语排序、四元素亲和、塔罗大阿卡纳原型、卢恩符。
+    它们是<strong style="color:var(--fg)">翻译而非第二次测量</strong>——不应被当作独立证据来互相印证。</p>
+
+  <h2>7. 关系相性算法</h2>
+  <div class="card">
+    <p style="color:var(--fg)">Total = clamp(round( (w<sub>psy</sub>·P + w<sub>sym</sub>·S) · (0.55 + 0.45·gate) ), 0, 100)</p>
+    <ul class="clean">
+      <li><strong style="color:var(--fg)">gate 准入</strong> = min(意愿<sub>A→B</sub>, 意愿<sub>B→A</sub>) × 关系形态相容系数 × (1 − 0.06·节奏差)。仅由自陈的匹配意愿决定，不含任何特质推断。</li>
+      <li><strong style="color:var(--fg)">P 心理层</strong>：十二维按五种函数加权——趋同型（衡/兆/流/织/垣/化/根）、互补型（曜/渊/锻/流）、争夺型（锻双高扣分）、振幅型（汐，受双方磐的稳态补偿）、联合水平型（磐越高越好）。</li>
+      <li><strong style="color:var(--fg)">S 符号层</strong>：对称化八字合婚（日支/年支的六合三合冲刑害、日主五行生克、喜用互补）1.2、星盘相位 1.0、MBTI 轴向 0.8、卦象关系（同卦/综卦/错卦/共爻数）0.9、生命灵数 0.5。</li>
+      <li><strong style="color:var(--fg)">权重</strong>：w<sub>sym</sub> = clamp(2·λ̄<sub>b</sub>, 0, 0.5)，w<sub>psy</sub> = 1 − w<sub>sym</sub>。双方都把 λ<sub>b</sub> 设为 0，符号层就完全不参与。</li>
+      <li><strong style="color:var(--fg)">配对代码</strong>：六轴同极记大写、异极记小写（取 A 方字母），后缀为等级 S/A/B/C/D。例：<span class="mono">rOFSBm-A</span>。</li>
+    </ul>
+  </div>
+
+  <h2>8. 伦理边界</h2>
+  <div class="notice warn">
+    <ul class="clean" style="margin:0">
+      <li><strong style="color:var(--fg)">身份 ≠ 人格。</strong>性别认同、性倾向、关系形态、人称代词在任何计算路径上都不作为人格特质的预测变量。它们只用于称谓与关系匹配的双向意愿。</li>
+      <li><strong style="color:var(--fg)">合婚去性别化。</strong>传统合婚中依赖「男命/女命」的吉凶条目全部替换为对称规则，使算法对同性、非二元与多元关系同等适用；关系形态相容性作为独立系数显式给出，而不是默认单偶制。</li>
+      <li><strong style="color:var(--fg)">不做外貌推断。</strong>面相、手相虽列入体系普查，但明确不纳入计算——基于外貌特征的人格推断具有高度歧视风险。</li>
+      <li><strong style="color:var(--fg)">不做高风险决策。</strong>本框架不得用于招聘筛选、信贷、保险、司法或医疗决策。人格量表在选拔场景的效度与公平性问题在学界已有长期争议，而象征层更无此类效度。</li>
+      <li><strong style="color:var(--fg)">数据不出本机。</strong>全部计算在浏览器完成，出生信息与答卷仅存于 localStorage，可随时删除；无后端、无遥测。</li>
+      <li><strong style="color:var(--fg)">认识论立场。</strong>OML 不主张出生时刻会导致人格差异。象征层的定位是<em>文化语义的翻译通道</em>：它让使用不同体系的人可以谈论同一件事，其默认权重被刻意压到较低，并且可以归零。</li>
+    </ul>
+  </div>
+
+  <h2>9. 已知局限</h2>
+  <div class="card">
+    <ul class="clean">
+      <li>常模为设计值而非实证分层常模；分数的绝对位置（如「62 分」）目前只有相对意义。</li>
+      <li>映射系数未经因子分析验证；十二维之间可能存在未建模的相关（当前复合公式假设 ρ = 0）。</li>
+      <li>天文算法为解析式低精度实现，极区上升点、历史早期日期、时区数据库（未处理夏令时）均为已知薄弱环节；出生时间不确定 ±2 小时可能改变时柱与上升星座。</li>
+      <li>问卷未做跨语言等值检验；中英文题目为对照翻译而非双向回译验证。</li>
+      <li>关系相性算法未经纵向追踪验证，不能预测关系存续。</li>
+    </ul>
+  </div>
+
+  <p style="margin-top:30px">完整文档：
+    <a href="docs/01-world-systems-ranking.md">01 世界体系普查</a> ·
+    <a href="docs/02-oml-spec.md">02 体系规范</a> ·
+    <a href="docs/03-mapping-table.md">03 统一映射表</a> ·
+    <a href="docs/04-matching-algorithm.md">04 匹配算法</a> ·
+    <a href="docs/05-ethics-inclusion.md">05 伦理与包容性</a></p>
+</div>
+<script type="module">
+import { mountChrome, el } from './src/ui/common.js';
+import { DIMENSIONS, AXES } from './src/core/dimensions.js';
+import { NORMS } from './src/core/scoring.js';
+import { SOURCE_WEIGHTS } from './src/core/mapping.js';
+mountChrome('method.html');
+
+const nt = document.getElementById('normtable');
+nt.append(el('thead', {}, el('tr', {}, ['轴','字母','维度','English','五行','脉轮','体质','μ','σ','高分表现'].map(h => el('th', {}, h)))));
+nt.append(el('tbody', {}, DIMENSIONS.map(d => el('tr', {},
+  el('td', {}, el('small', {}, AXES[d.axis].zh)),
+  el('td', { class: 'mono', style: 'color:var(--gold);font-size:16px' }, d.key),
+  el('td', {}, d.name),
+  el('td', {}, el('small', {}, d.en)),
+  el('td', {}, ['木','火','土','金','水'][d.element]),
+  el('td', {}, el('small', {}, d.chakra)),
+  el('td', {}, el('small', {}, d.dosha)),
+  el('td', { class: 'mono' }, NORMS[d.key].mu.toFixed(2)),
+  el('td', { class: 'mono' }, NORMS[d.key].sigma.toFixed(2)),
+  el('td', {}, el('small', {}, d.high))))));
+
+const wt = document.getElementById('weighttable');
+const LABEL = {
+  sunSign:'太阳星座（西洋占星）', moonSign:'月亮星座', ascSign:'上升星座',
+  fiveElements:'八字五行结构', dayMaster:'日主天干', strength:'日主强弱',
+  tenGod:'十神主气', chineseZodiac:'生肖', lunarPhase:'出生月相',
+  lifePath:'生命灵数', tzolkin:'玛雅卓尔金日号', mbtiSelf:'自陈 MBTI',
+  enneagramSelf:'自陈九型', bloodType:'血型',
+};
+wt.append(el('thead', {}, el('tr', {}, ['来源','权重 w','说明'].map(h => el('th', {}, h)))));
+wt.append(el('tbody', {}, Object.entries(SOURCE_WEIGHTS).sort((a,b)=>b[1]-a[1]).map(([k,w]) => el('tr', {},
+  el('td', {}, LABEL[k] || k),
+  el('td', {}, el('div', { class:'bar', style:'width:120px;display:inline-block;vertical-align:middle' }, el('i', { style:`width:${w/1.0*100}%` })), ' ', el('span', { class:'mono' }, w.toFixed(2))),
+  el('td', {}, el('small', {}, k.endsWith('Self') ? '仅在用户主动填写时生效' : (k === 'bloodType' ? '实证支持极弱，权重刻意设为最低' : '由出生信息自动推导')))))));
+</script>
+</body>
+</html>
