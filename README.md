@@ -22,7 +22,9 @@ npm run test:browser # 51 项浏览器端到端断言 + 截图
 npm run verify       # 两者一起跑
 ```
 
-站点是纯静态的，直接把仓库根目录扔到任何静态托管上即可（已附 GitHub Pages 工作流）。
+站点是纯静态的，仓库根目录即站点根，直接扔到任何静态托管上即可。
+线上版本通过 GitHub Pages 的分支部署（Settings → Pages → Source: Deploy from a branch，`main` / root）发布，
+推送到 `main` 即自动更新，无需构建步骤。
 
 ---
 
